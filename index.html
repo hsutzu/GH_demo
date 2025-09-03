@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plant Growth GIF Viewer</title>
+  <style>
+    :root {
+      --bg: #0b0c10; /* deep gray */
+      --panel: #121318;
+      --text: #e8eef2;
+      --muted: #9fb3c8;
+      --accent: #61dafb; /* soft cyan */
+      --border: #1c2230;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(180deg, var(--bg), #0f1220);
+      color: var(--text);
+      display: grid; place-items: start center;
+    }
+
+    /* 建議同時把容器放寬（若已套方案 A 就不用重複） */
+    .wrap { 
+    width: min(1440px, 96vw);   /* 再放寬一點也行：1440/96vw */
+    }
+
+    header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 28px 0 14px; }
+    h1 { font-size: clamp(20px, 2.8vw, 30px); margin: 0; font-weight: 700; }
+    .sub { color: var(--muted); font-size: 0.95rem; }
+
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      background: var(--panel); padding: 10px; border-radius: 14px; border: 1px solid #1e2533;
+    }
+    .btn {
+      appearance: none; border: 1px solid #2b3547; color: var(--text);
+      background: #182033; padding: 8px 14px; border-radius: 12px; cursor: pointer; font-weight: 600;
+      transition: transform .05s ease, background .2s ease, border-color .2s ease;
+    }
+    .btn:hover { background: #1e2944; }
+    .btn:active { transform: translateY(1px); }
+    .btn[aria-pressed="true"] { background: #1d3a52; border-color: #2b6e85; box-shadow: 0 0 0 2px rgba(97,218,251,.15) inset; }
+
+    /* ===== 新：主版面（左 GIF / 右 overview 兩張） ===== */
+    /* 讓兩欄等高並撐滿同一列高度 */
+    .layout {
+        display: grid;
+        grid-template-columns: 1.25fr 0.75fr;  /* 原 1fr 1fr */
+        gap: 16px;
+        align-items: stretch;
+        margin: 14px 0 16px;
+    }
+
+
+    /* 左欄整體撐滿高度，viewer 撐開、status 貼底 */
+    .layout > .col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* 拿掉 height:100% 強制撐滿 */
+    }
+
+    /* ===== 左側 GIF：再縮一點，避免壓過右側 ===== */
+    /* viewer 允許彈性伸縮填滿剩餘高度 */
+        .viewer {
+        background: #0c0f18;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        padding: 10px;
+        flex: 0 0 auto;   /* 關鍵：撐開 */
+        min-height: 70vh;    /* 允許在等高容器中正確收放 */
+        }
+        .viewer img {
+        width: 78%;
+        max-height: 100%;
+        object-fit: contain;
+        }
+    /* ===== 右側兩張卡片：統一高度、置中縮放 ===== */
+    .side {
+    height: 100%;
+    display: grid;
+    grid-template-rows: 1fr 1fr;    /* 關鍵：上下等高 */
+    gap: 16px;
+    }
+    .card {
+    background: #0c0f18;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+
+    display: flex;                  /* 讓 header 固定高、body 撐滿 */
+    flex-direction: column;
+    }
+    .card header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #162033;
+    margin: 0;
+    }
+    .card header h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+
+    .card .body {
+    flex: 1 1 auto;                 /* 撐滿卡片剩餘高度 */
+    min-height: 0;                  /* 防止內容撐破 */
+    padding: 8px;
+    display: grid;
+    place-items: center;
+    }
+    .card .body img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    }
+
+
+    .status {
+      display: flex; justify-content: space-between; align-items: center;
+      color: var(--muted); font-size: .95rem; margin-top: 6px;
+    }
+    .pill { background: #1a2436; border: 1px solid #24334b; color: var(--muted); padding: 6px 10px; border-radius: 999px; }
+
+    footer { color: var(--muted); font-size: .85rem; margin: 8px 0 24px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* 手機直向：改為上下堆疊 */
+    @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .viewer img { width: 88%; }
+    }
+    @media (max-width: 640px) {
+      .controls { gap: 8px; }
+      .btn { padding: 7px 12px; font-size: .95rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Plant Growth GIF Viewer</h1>
+        <div class="sub">點擊日期按鈕切換不同天的 GIF（左側），右側為高度曲線與多日植株總覽</div>
+      </div>
+      <div class="pill" id="hint">快捷鍵：←/→</div>
+    </header>
+
+    <div class="controls" role="group" aria-label="選擇日期">
+      <button class="btn" data-key="04-08">04/08</button>
+      <button class="btn" data-key="04-13">04/13</button>
+      <button class="btn" data-key="04-18">04/18</button>
+      <button class="btn" data-key="04-24">04/24</button>
+      <button class="btn" data-key="04-28">04/28</button>
+      <button class="btn" data-key="05-04">05/04</button>
+    </div>
+
+    <!-- ===== 新：兩欄版面 ===== -->
+    <section class="layout">
+      <!-- 左：GIF Viewer（縮小） -->
+      <div class="col">
+        <div class="viewer" id="viewer" aria-live="polite">
+          <img id="gif" alt="Plant GIF" />
+        </div>
+        <div class="status">
+          <div id="caption">Loading…</div>
+          <div class="pill" id="sizeInfo"></div>
+        </div>
+      </div>
+
+      <!-- 右：兩張 overview 圖 -->
+      <aside class="side">
+        <!-- 上：高度生長曲線圖 -->
+        <div class="card">
+          <header><h3>高度生長曲線（Overview）</h3></header>
+          <div class="body">
+            <!-- 把下行 src 換成你的實際檔案，如：assets/overview/height_overview.png -->
+            <img id="heightOverview" src="assets/overview/height_overview.png" alt="Height growth curve overview">
+          </div>
+        </div>
+
+        <!-- 下：幾天植株總覽 -->
+        <div class="card">
+          <header><h3>多日植株總覽（04/08–05/04）</h3></header>
+          <div class="body">
+            <!-- 把下行 src 換成你的實際檔案，如：assets/overview/plants_overview.png -->
+            <img id="plantsOverview" src="assets/overview/plants_overview.png" alt="Plant snapshots overview">
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <footer>
+
+    </footer>
+  </div>
+
+  <script>
+    // === 1) 設定日期 → 檔名對應 ===
+    const GIFS = {
+      "04-08": "assets/gifs/2024-04-08.gif",
+      "04-13": "assets/gifs/2024-04-13.gif",
+      "04-18": "assets/gifs/2024-04-18.gif",
+      "04-24": "assets/gifs/2024-04-24.gif",
+      "04-28": "assets/gifs/2024-04-28.gif",
+      "05-04": "assets/gifs/2024-05-04.gif",
+    };
+    const DEFAULT_KEY = "05-04";
+
+    // === 2) DOM 取得 ===
+    const btns = Array.from(document.querySelectorAll('.btn'));
+    const img = document.getElementById('gif');
+    const caption = document.getElementById('caption');
+    const sizeInfo = document.getElementById('sizeInfo');
+
+    // === 3) 載入工具 ===
+    function setActive(key) {
+      btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.key === key)));
+      const src = GIFS[key];
+      if (!src) return;
+
+      caption.textContent = `Loading ${key}…`;
+      sizeInfo.textContent = '';
+
+      const pre = new Image();
+      pre.onload = () => {
+        img.src = src + cacheBust();
+        img.alt = `Plant growth GIF on ${key}`;
+        caption.textContent = `顯示日期：${key.replace('-', '/').replace('-', '/')}`;
+        sizeInfo.textContent = `${Math.round((pre.naturalWidth||0))}×${Math.round((pre.naturalHeight||0))}`;
+        const url = new URL(window.location);
+        url.searchParams.set('date', key);
+        window.history.replaceState({}, '', url);
+      };
+      pre.onerror = () => {
+        img.removeAttribute('src');
+        caption.textContent = `無法載入 ${key} 的 GIF，請確認檔名或路徑。`;
+        sizeInfo.textContent = '';
+      };
+      pre.src = src + cacheBust();
+    }
+
+    function cacheBust() {
+      return ''; // 正式上線可維持空字串；除錯可改為 `?v=${Date.now()}`
+    }
+
+    // === 4) 事件繫結 ===
+    btns.forEach(b => b.addEventListener('click', () => setActive(b.dataset.key)));
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const order = btns.map(b => b.dataset.key);
+      const curr = new URLSearchParams(location.search).get('date') || DEFAULT_KEY;
+      const i = Math.max(0, order.indexOf(curr));
+      const ni = e.key === 'ArrowLeft' ? (i - 1 + order.length) % order.length : (i + 1) % order.length;
+      setActive(order[ni]);
+    });
+
+    // 讀取 URL 參數或預設值
+    const urlKey = new URLSearchParams(location.search).get('date');
+    setActive(GIFS[urlKey] ? urlKey : DEFAULT_KEY);
+  </script>
+</body>
+</html>
